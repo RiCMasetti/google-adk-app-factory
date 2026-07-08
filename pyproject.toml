@@ -1,0 +1,28 @@
+[project]
+name = "google-adk-app-factory"
+version = "0.1.0"
+description = "Google ADK multi-agent frontend app factory using Amazon Bedrock EU endpoints."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "boto3>=1.34.0",
+    "google-adk>=1.0.0",
+    "litellm>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.6.0",
+]
+
+[project.scripts]
+adk-app-factory = "app.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
