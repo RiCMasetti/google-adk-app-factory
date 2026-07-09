@@ -48,6 +48,8 @@ EU Bedrock runtime endpoints.
 - Only EU Bedrock regions are accepted by configuration validation.
 - Do not scatter model IDs. Keep them in `.env` and `app/config.py`.
 - AppWriter writes generated app artifacts only under `/workspace/app`.
+- AppWriter and TestWriter must not receive a free-form shell execution tool.
+  Sandbox execution must go through fixed allowlisted command names.
 - Orchestrator reads compact JSON summaries and state files, not full app
   source trees or full logs unless a failure makes it strictly necessary.
 - Stop after `MAX_AGENT_ITERATIONS`, default 5.

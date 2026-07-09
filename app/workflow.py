@@ -503,8 +503,8 @@ Use this compact AppWriter summary:
 {json.dumps(appwriter_summary, indent=2)}
 
 Read the acceptance criteria and inspect the app through tools. Run build, lint,
-and tests inside the sandbox when commands are available. Write detailed reports
-and testwriter-summary.json.
+and tests inside the sandbox only through list_allowed_sandbox_commands and
+run_allowed_sandbox_command. Write detailed reports and testwriter-summary.json.
 """
         result = await run_adk_agent(
             create_testwriter_agent(self.settings),

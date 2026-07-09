@@ -100,8 +100,18 @@ def prepare_sandbox() -> dict:
     return {"status": result.status, "message": result.message, "details": result.details}
 
 
-def run_sandbox_command(command: str, cwd: str) -> dict:
-    """Run a shell command inside the frontend sandbox container."""
+def list_allowed_sandbox_commands() -> dict:
+    """List sandbox commands that agents are allowed to request."""
 
-    result = SandboxManager(_workspace()).run(command=command, cwd=cwd)
+    return {
+        "status": "success",
+        "commands": SandboxManager(_workspace()).allowed_commands(),
+        "cwd": "/workspace/app",
+    }
+
+
+def run_allowed_sandbox_command(command_name: str) -> dict:
+    """Run one allowlisted command inside the frontend sandbox container."""
+
+    result = SandboxManager(_workspace()).run_allowed(command_name=command_name)
     return {"status": result.status, "message": result.message, "details": result.details}

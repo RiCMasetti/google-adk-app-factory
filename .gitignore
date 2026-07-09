@@ -1,5 +1,6 @@
 .env
 .venv/
+.adk
 __pycache__/
 *.pyc
 .pytest_cache/
@@ -11,6 +12,10 @@ workspace/plans/*
 workspace/metrics/*
 workspace/input/*
 workspace/sandbox/*
+workspace/*.json
+workspace/*.log
+workspace/*.md
+workspace/*.txt
 !workspace/app/.gitkeep
 !workspace/reports/.gitkeep
 !workspace/handoffs/.gitkeep

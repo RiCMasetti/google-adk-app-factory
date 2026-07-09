@@ -6,10 +6,11 @@ from google.adk.agents import Agent
 
 from app.config import Settings, create_litellm_model
 from app.tools import (
+    list_allowed_sandbox_commands,
     list_workspace_files,
     prepare_sandbox,
     read_workspace_file,
-    run_sandbox_command,
+    run_allowed_sandbox_command,
     write_app_file,
     write_workspace_file,
     write_workspace_json,
@@ -83,6 +84,10 @@ Tasks:
 - Do not write outside the shared workspace.
 - Do not list or read dependency/build/cache artifacts such as node_modules,
   dist, .vite, coverage, package-lock.json, or large logs.
+- Do not request arbitrary shell commands. If you need to smoke-check the app,
+  use only list_allowed_sandbox_commands and run_allowed_sandbox_command with
+  one of these command names: npm_install, npm_ci, npm_test, npm_run_build,
+  npm_run_lint, npm_run_typecheck.
 - After every attempt, write /workspace/handoffs/appwriter-summary.json.
 
 The summary must be compact JSON with:
@@ -102,7 +107,10 @@ Inputs:
 Tasks:
 - Inspect the app structure.
 - Add or run tests where practical.
-- Run build/lint/test commands when available inside the sandbox.
+- Run build/lint/test commands when available inside the sandbox using only
+  list_allowed_sandbox_commands and run_allowed_sandbox_command. Valid command
+  names are: npm_install, npm_ci, npm_test, npm_run_build, npm_run_lint,
+  npm_run_typecheck.
 - Validate that requested features and acceptance criteria are actually implemented.
 - Keep inspection context compact. Do not list or read node_modules, dist,
   .vite, coverage, package-lock.json, or full logs.
@@ -161,7 +169,8 @@ def create_appwriter_agent(settings: Settings | None = None) -> Agent:
             list_workspace_files,
             write_app_file,
             write_workspace_json,
-            run_sandbox_command,
+            list_allowed_sandbox_commands,
+            run_allowed_sandbox_command,
         ],
     )
 
@@ -179,6 +188,7 @@ def create_testwriter_agent(settings: Settings | None = None) -> Agent:
             write_app_file,
             write_workspace_file,
             write_workspace_json,
-            run_sandbox_command,
+            list_allowed_sandbox_commands,
+            run_allowed_sandbox_command,
         ],
     )

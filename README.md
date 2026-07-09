@@ -4,6 +4,18 @@ Python project using Google ADK to coordinate a multi-agent frontend app factory
 The workflow plans, generates, tests, and validates a frontend-only application
 under a shared workspace mounted into a Docker sandbox.
 
+## Experimental Status
+
+This is an experimental local development project, not a production-ready
+service. It is intended to explore Google ADK multi-agent orchestration,
+Bedrock-backed model calls, shared workspace handoffs, and container-based
+frontend validation.
+
+Do not expose this workflow directly to untrusted users, CI runners, public web
+traffic, or production credentials without additional isolation, review gates,
+and security controls. Generated applications and validation reports should be
+treated as machine-generated artifacts that require human review before reuse.
+
 ## Agents
 
 - Orchestrator: Claude Sonnet 4.6 via Amazon Bedrock. Controls workflow state,
@@ -69,6 +81,37 @@ Inside the container, the same shared directory is mounted at `/workspace`.
 The project also installs `boto3` because LiteLLM's Bedrock provider imports
 `boto3`/`botocore` while preparing Bedrock requests, including bearer-token
 requests.
+
+## Dev Container
+
+The repository includes a VS Code/Cursor compatible devcontainer for a more
+reproducible local environment:
+
+```text
+.devcontainer/
+  Dockerfile
+  devcontainer.json
+```
+
+Open the repository in a compatible editor and choose **Reopen in Container**.
+The container installs Python 3.12 tooling, `uv`, Docker CLI access, and runs:
+
+```bash
+uv sync --extra dev
+```
+
+It also installs the Codex CLI for the container user and recommends the OpenAI
+ChatGPT/Codex editor extension inside the devcontainer. Run `codex login` inside
+the devcontainer terminal to authenticate Codex there; host Codex credentials are
+not mounted by default.
+
+The devcontainer uses the common "Docker outside of Docker" setup so the
+workflow can still start the frontend sandbox with Docker Compose. This keeps
+the developer environment separate from the host Python installation, but access
+to the host Docker daemon is powerful and should be treated as trusted-local
+development only. Do not mount cloud credentials, SSH keys, production secrets,
+or other sensitive host directories into the devcontainer unless you understand
+the impact.
 
 ## Bedrock Configuration
 
@@ -188,6 +231,57 @@ workspace/reports/iteration-report.json
 token report is flushed after every usage record, so partial token totals remain
 available even if a later agent fails.
 
+## Security Considerations
+
+This project deliberately gives agents enough access to generate, install, run,
+and validate frontend code in a Docker sandbox. That makes it useful for
+experimentation, but it also creates risks that should be understood before
+running arbitrary requests.
+
+- Prompt injection: user requests, generated files, reports, web content, or
+  future external data sources can contain instructions that try to override the
+  agent's intended behavior. Treat all content outside the developer prompts as
+  untrusted data.
+- Sandbox execution: AppWriter and TestWriter can request only allowlisted
+  sandbox commands through `run_allowed_sandbox_command`, for example
+  `npm_install`, `npm_test`, and `npm_run_build`. Commands run inside Docker,
+  but the shared `workspace` volume is mounted read/write, so generated files,
+  reports, and handoffs can be modified by code running in the sandbox.
+- Dependency supply chain: generated frontend apps may add dependencies and run
+  package manager commands. Malicious packages, postinstall scripts, or
+  compromised transitive dependencies can execute inside the sandbox.
+- Report trust: validation reports are artifacts in the shared workspace. For
+  stronger assurance, critical build/test commands should be run by trusted
+  orchestration code and reviewed separately from agent-written summaries.
+- Sensitive data: `.env` is ignored by git and should never be copied into the
+  workspace or Docker environment. Avoid mounting host credentials, SSH keys,
+  cloud config, or the Docker socket into the sandbox.
+- Cost and resource usage: model calls, package installs, and test commands can
+  consume tokens, CPU, disk, and network bandwidth. Keep timeouts, iteration
+  limits, token reporting, and workspace cleanup in place.
+- Generated code quality: generated apps may contain ordinary web application
+  issues such as unsafe HTML rendering, insecure storage assumptions, weak
+  dependency choices, or accidental calls to third-party services. Review and
+  scan generated code before publishing it.
+
+Implemented hardening:
+
+- Agent-facing free-form sandbox shell execution has been replaced with a fixed
+  allowlist: `npm_install`, `npm_ci`, `npm_test`, `npm_run_build`,
+  `npm_run_lint`, and `npm_run_typecheck`.
+
+Recommended hardening before any shared or production-like use:
+
+- Let trusted Python orchestration run build/test/install commands instead of
+  relying only on agent-selected commands and agent-written reports.
+- Use per-run isolated workspaces and clean them after completion.
+- Mount only the minimum required directories, preferably with read-only mounts
+  for inputs, plans, and previous reports.
+- Run dependency and generated-code scans such as `npm audit`, secret scanning,
+  linting, and Semgrep before publishing generated apps.
+- Keep web search, URL fetching, and external document ingestion disabled unless
+  retrieved content is clearly isolated as untrusted data.
+
 ## Current Limitations
 
 - Token usage is recorded through an abstraction. If ADK/LiteLLM does not expose
@@ -197,3 +291,6 @@ available even if a later agent fails.
   provisioning system.
 - Specialist agents are expected to keep handoff JSON compact. The orchestrator
   enforces this by passing summaries between steps instead of full logs.
+- The sandbox and tool permissions are designed for local experimentation. They
+  are not a complete security boundary for hostile prompts, hostile packages, or
+  untrusted generated code.

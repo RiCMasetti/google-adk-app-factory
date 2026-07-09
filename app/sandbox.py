@@ -10,17 +10,27 @@ from datetime import UTC, datetime
 from app.workspace import Workspace
 
 
+ALLOWED_SANDBOX_COMMANDS: dict[str, tuple[str, ...]] = {
+    "npm_install": ("npm", "install"),
+    "npm_ci": ("npm", "ci"),
+    "npm_test": ("npm", "test"),
+    "npm_run_build": ("npm", "run", "build"),
+    "npm_run_lint": ("npm", "run", "lint"),
+    "npm_run_typecheck": ("npm", "run", "typecheck"),
+}
+SANDBOX_APP_DIR = "/workspace/app"
+
 DOCKERFILE = """\
 FROM node:22-bookworm-slim
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends bash ca-certificates git procps \
+    && apt-get install -y --no-install-recommends ca-certificates git procps \
     && rm -rf /var/lib/apt/lists/*
 
 RUN corepack enable
 
 WORKDIR /workspace/app
-CMD ["bash", "-lc", "sleep infinity"]
+CMD ["sleep", "infinity"]
 """
 
 COMPOSE_FILE = """\
@@ -34,7 +44,7 @@ services:
       - ..:/workspace
     environment:
       - CI=true
-    command: ["bash", "-lc", "sleep infinity"]
+    command: ["sleep", "infinity"]
 """
 
 
@@ -62,7 +72,7 @@ class SandboxManager:
             "shared_volume_container": "/workspace",
             "app_directory": "/workspace/app",
             "privileged": False,
-            "tools": ["node", "npm", "corepack", "bash", "git"],
+            "tools": ["node", "npm", "corepack", "git"],
             "timestamp": datetime.now(UTC).isoformat(),
         }
         self.workspace.write_json("handoffs/sandbox-summary.json", summary)
@@ -111,7 +121,18 @@ class SandboxManager:
             return SandboxResult("failed", "Sandbox container failed to start.", summary)
         return SandboxResult("success", "Sandbox container started.", summary)
 
-    def run(self, command: str, cwd: str) -> SandboxResult:
+    def allowed_commands(self) -> dict[str, list[str]]:
+        return {name: list(command) for name, command in ALLOWED_SANDBOX_COMMANDS.items()}
+
+    def run_allowed(self, command_name: str) -> SandboxResult:
+        command = ALLOWED_SANDBOX_COMMANDS.get(command_name)
+        if command is None:
+            details = {
+                "requested_command": command_name,
+                "allowed_commands": self.allowed_commands(),
+            }
+            return SandboxResult("failed", "Sandbox command is not allowlisted.", details)
+
         completed = subprocess.run(
             [
                 "docker",
@@ -121,11 +142,9 @@ class SandboxManager:
                 "exec",
                 "-T",
                 "-w",
-                cwd,
+                SANDBOX_APP_DIR,
                 "frontend-sandbox",
-                "bash",
-                "-lc",
-                command,
+                *command,
             ],
             cwd=str(self.workspace.path("sandbox")),
             text=True,
@@ -134,12 +153,12 @@ class SandboxManager:
             check=False,
         )
         details = {
-            "command": command,
-            "cwd": cwd,
+            "command_name": command_name,
+            "command": list(command),
+            "cwd": SANDBOX_APP_DIR,
             "returncode": completed.returncode,
             "stdout": completed.stdout,
             "stderr": completed.stderr,
         }
         status = "success" if completed.returncode == 0 else "failed"
         return SandboxResult(status, "Sandbox command completed.", details)
-
