@@ -4,6 +4,44 @@ Python project using Google ADK to coordinate a multi-agent frontend app factory
 The workflow plans, generates, tests, and validates a frontend-only application
 under a shared workspace mounted into a Docker sandbox.
 
+> **Status:** Experimental local-development project. Generated applications and
+> reports require human review, and the sandbox is not a security boundary for
+> hostile prompts or dependencies.
+
+## What This Project Demonstrates
+
+- Google ADK orchestration with one coordinator and four specialist agents.
+- Compact filesystem handoffs that keep source code and full logs out of the
+  orchestrator context.
+- Bedrock-backed model roles, bounded retries, token reporting, and observable
+  workflow state.
+- Container-based frontend validation with fixed, allowlisted command names.
+
+## Architecture
+
+```mermaid
+flowchart TD
+    U[User request] --> O[Orchestrator]
+    O --> P[Planner]
+    O --> S[Sandbox Setup]
+    O --> A[AppWriter]
+    O --> T[TestWriter]
+    P <--> W[(Shared workspace)]
+    S <--> W
+    A <--> W
+    T <--> W
+    T --> O
+    O --> R[Final report and metrics]
+```
+
+## Related Implementation
+
+The companion
+[LangGraph/LangSmith implementation](https://github.com/RiCMasetti/langchain-frontend-app-factory)
+generalizes the same app-factory idea across multiple frontend frameworks and
+uses per-run workspaces, deterministic test execution, checkpointing, and
+LangSmith tracing.
+
 ## Experimental Status
 
 This is an experimental local development project, not a production-ready
